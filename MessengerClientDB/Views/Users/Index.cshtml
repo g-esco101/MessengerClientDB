@@ -1,0 +1,36 @@
+﻿@model IEnumerable<MessengerClientDB.Models.UserRolesViewModel>
+
+@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Index</h2>
+
+<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.Username)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.myRoles)
+        </th>
+    </tr>
+
+    @foreach (var item in Model)
+    {
+    <tr>
+        <td>
+            @Html.DisplayFor(modelItem => item.Username)
+        </td>
+        <td>
+            @Html.DisplayFor(modelItem => item.myRoles)
+        </td>
+        <td>
+            @Html.ActionLink("Add roles", "Add", new { id = item.Id }) |
+            @Html.ActionLink("Remove roles", "Remove", new { id = item.Id }) |
+            @Html.ActionLink("Delete user", "Delete", new { id = item.Id })
+        </td>
+    </tr>
+    }
+
+</table>
