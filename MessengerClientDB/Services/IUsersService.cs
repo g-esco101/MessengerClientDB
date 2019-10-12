@@ -5,12 +5,12 @@ namespace MessengerClientDB.Services
 {
     public interface IUsersService
     {
-        UpdateRolesViewModel GetUpdateRolesVMById(KeyValuePair<Users, string> userRoles, string[] allRoles);
+        UpdateRolesViewModel GetUpdateRolesVM(Users user, string[] allRoles);
 
         string stringArrToCSV(string[] stringArr);
 
-        UserRolesViewModel GetUserRolesVMById(KeyValuePair<Users, string> userRoles);
+        UserRolesViewModel GetUserRolesVM(Users user);
 
-        List<UserRolesViewModel> GetUserRolesVMAll(Dictionary<Users, string> users);
+        List<UserRolesViewModel> GetAllUsersRolesVM(IEnumerable<Users> allUsers);
     }
 }

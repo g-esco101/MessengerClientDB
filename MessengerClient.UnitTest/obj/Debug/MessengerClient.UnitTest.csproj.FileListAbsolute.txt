@@ -1,0 +1,2 @@
+C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClient.UnitTest\obj\Debug\MessengerClient.UnitTest.csprojAssemblyReference.cache
+C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClient.UnitTest\obj\Debug\MessengerClient.UnitTest.csproj.CoreCompileInputs.cache

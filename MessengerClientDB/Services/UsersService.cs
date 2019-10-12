@@ -1,5 +1,5 @@
-﻿using MessengerClientDB.Models;
-using MessengerClientDB.Repositories;
+﻿using MessengerClientDB.Helpers;
+using MessengerClientDB.Models;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -7,15 +7,18 @@ namespace MessengerClientDB.Services
 {
     public class UsersService : IUsersService
     {
-        public UpdateRolesViewModel GetUpdateRolesVMById(KeyValuePair<Users, string> userRoles, string[] allRoles)
+        public UpdateRolesViewModel GetUpdateRolesVM(Users user, string[] allRoles)
         {
             try
             {
-                UpdateRolesViewModel updateRoles = new UpdateRolesViewModel();
-                updateRoles.Id = userRoles.Key.ID;
-                updateRoles.Username = userRoles.Key.Username;
-                updateRoles.myRoles = userRoles.Value;
-                updateRoles.Roles = allRoles;
+                var userInfo = RoleHelper.ArrangeRole(user);
+                UpdateRolesViewModel updateRoles = new UpdateRolesViewModel()
+                {
+                    Id = userInfo.Key.ID,
+                    Username = userInfo.Key.Username,
+                    myRoles = userInfo.Value,
+                    Roles = allRoles,
+                };
                 return updateRoles;
             }
             catch { return null; }
@@ -35,11 +38,32 @@ namespace MessengerClientDB.Services
             return myRoles;
         }
 
-        public UserRolesViewModel GetUserRolesVMById(KeyValuePair<Users,string> userRoles)
+        public List<UserRolesViewModel> GetAllUsersRolesVM(IEnumerable<Users> allUsers)
+        {
+            UserRolesViewModel userRole;
+            List<UserRolesViewModel> userRoles = new List<UserRolesViewModel>();
+            try
+            {
+                var users = ArrangeRoles(allUsers);
+                foreach (var user in users)
+                {
+                    userRole = new UserRolesViewModel();
+                    userRole.Id = user.Key.ID;
+                    userRole.Username = user.Key.Username;
+                    userRole.myRoles = user.Value;
+                    userRoles.Add(userRole);
+                }
+                return userRoles;
+            }
+            catch { return null; }
+        }
+
+        public UserRolesViewModel GetUserRolesVM(Users user)
         {
             UserRolesViewModel userRole;
             try
             {
+                var userRoles = RoleHelper.ArrangeRole(user);
                 userRole = new UserRolesViewModel();
                 userRole.Id = userRoles.Key.ID;
                 userRole.Username = userRoles.Key.Username;
@@ -49,23 +73,28 @@ namespace MessengerClientDB.Services
             catch { return null; }
         }
 
-        public List<UserRolesViewModel> GetUserRolesVMAll(Dictionary<Users, string> users)
+        private Dictionary<Users, string> ArrangeRoles(IEnumerable<Users> users)
         {
-            string userKey, userValue; UserRolesViewModel userRole;
-            List<UserRolesViewModel> userRoles = new List<UserRolesViewModel>();
+            string myRoles = "";
+            Dictionary<Users, string> usersRolesDict = new Dictionary<Users, string>();
             try
             {
-                foreach (var user in users)
+                foreach (Users user in users)
                 {
-                    userKey = user.Key.Username;
-                    userValue = user.Value;
-                    userRole = new UserRolesViewModel();
-                    userRole.Id = user.Key.ID;
-                    userRole.Username = user.Key.Username;
-                    userRole.myRoles = user.Value;
-                    userRoles.Add(userRole);
+                    int i = 0; int roleMapLength = user.UserRolesMapping.Count();
+                    foreach (UserRolesMapping roleMap in user.UserRolesMapping)
+                    {
+                        myRoles += roleMap.RoleMaster.RoleName;
+                        if ((i + 1) < roleMapLength)
+                        {
+                            myRoles += ", ";
+                        }
+                        i++;
+                    }
+                    usersRolesDict.Add(user, myRoles);
+                    myRoles = "";
                 }
-                return userRoles;
+                return usersRolesDict;
             }
             catch { return null; }
         }

@@ -1,39 +1,36 @@
 ﻿using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using System.Web;
 using System.Web.Mvc;
 using MessengerClientDB.Models;
 using MessengerClientDB.Repositories;
 using MessengerClientDB.Services;
-using Microsoft.AspNet.Identity;
+using MessengerClientDB.Unity;
 
 namespace MessengerClientDB.Controllers
 {
     [Authorize(Roles = "Admin")]
     public class UsersController : Controller
     {
-        private IUsersRepository _usersRepo;
+        private IUnitOfWork _unitOfWork;
 
-        private IUsersService _userService;
+        private IUsersService _usersService;
 
-        public UsersController(IUsersRepository usersRepository, IUsersService usersService)
+        public UsersController(IUsersService usersService)
         {
-            this._usersRepo = usersRepository;
-            this._userService = usersService;
+            _unitOfWork = new UnitOfWork(new MessengerClient_DBEntities());
+            _usersService = usersService;
         }
 
         // GET: Users
         public ActionResult Index()
         {
-            var users = _usersRepo.GetAllUsersRoles();
-            List<UserRolesViewModel> usersRoles = _userService.GetUserRolesVMAll(users);
+            var users = _unitOfWork.usersRolesRepo.GetAll();
+            var usersRoles = _usersService.GetAllUsersRolesVM(users);
             if (usersRoles == null)
             {
                 return HttpNotFound();
-
             }
             return View(usersRoles);
         }
@@ -45,7 +42,8 @@ namespace MessengerClientDB.Controllers
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
-            UpdateRolesViewModel model = _userService.GetUpdateRolesVMById(_usersRepo.GetUsersRoles((int)id), _usersRepo.GetAllRoles());
+            Users user = _unitOfWork.usersRolesRepo.Get((int)id);
+            UpdateRolesViewModel model = _usersService.GetUpdateRolesVM(user, _unitOfWork.usersRolesRepo.GetAllRoles());
             if (model == null)
             {
                 return HttpNotFound();
@@ -59,11 +57,11 @@ namespace MessengerClientDB.Controllers
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Add([Bind(Include = "Id,Checked")]UpdateRolesViewModel model)
         {
-            string[] myRoles, allRoles; bool addRolesFromService = false;
+            string[] myRoles, allRoles; bool addRolesToService = false;
             int checkedLength; string username;
             List<string> updatedRoles = new List<string>();
-            allRoles = _usersRepo.GetAllRoles();
-            username = _usersRepo.GetUserName(model.Id);
+            allRoles = _unitOfWork.usersRolesRepo.GetAllRoles();
+            username = _unitOfWork.usersRolesRepo.Get(model.Id).Username;
             checkedLength = model.Checked.Length;
             for (int i = 0; i < checkedLength; i++)
             {
@@ -73,10 +71,11 @@ namespace MessengerClientDB.Controllers
                 }
             }
             myRoles = updatedRoles.ToArray();
-            addRolesFromService = await AddRolesService(username, _userService.stringArrToCSV(myRoles));
-            if (addRolesFromService)
+            addRolesToService = await AddRolesService(username, _usersService.stringArrToCSV(myRoles));
+            if (addRolesToService)
             {
-                _usersRepo.AddRoles(username, myRoles);
+                _unitOfWork.usersRolesRepo.AddRoles(username, myRoles);
+                _unitOfWork.Save();
             }
             return RedirectToAction("Index", "Users");
         }
@@ -103,7 +102,8 @@ namespace MessengerClientDB.Controllers
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
-            UpdateRolesViewModel update = _userService.GetUpdateRolesVMById(_usersRepo.GetUsersRoles((int)id), _usersRepo.GetAllRoles());
+            Users user = _unitOfWork.usersRolesRepo.Get((int)id);
+            UpdateRolesViewModel update = _usersService.GetUpdateRolesVM(user, _unitOfWork.usersRolesRepo.GetAllRoles());
             if (update == null)
             {
                 return HttpNotFound();
@@ -120,8 +120,8 @@ namespace MessengerClientDB.Controllers
             string[] myRoles, allRoles; bool removedRolesFromService = false;
             int checkedLength; string username;
             List<string> updatedRoles = new List<string>();
-            allRoles = _usersRepo.GetAllRoles();
-            username = _usersRepo.GetUserName(model.Id);
+            allRoles = _unitOfWork.usersRolesRepo.GetAllRoles();
+            username = _unitOfWork.usersRolesRepo.Get(model.Id).Username;
             checkedLength = model.Checked.Length;
             for (int i = 0; i < checkedLength; i++)
             {
@@ -131,10 +131,11 @@ namespace MessengerClientDB.Controllers
                 }
             }
             myRoles = updatedRoles.ToArray();
-            removedRolesFromService = await RemoveRolesService(username, _userService.stringArrToCSV(myRoles));
+            removedRolesFromService = await RemoveRolesService(username, _usersService.stringArrToCSV(myRoles));
             if (removedRolesFromService)
             {
-                _usersRepo.RemoveRoles(username, myRoles);
+                _unitOfWork.usersRolesRepo.RemoveRoles(username, myRoles);
+                _unitOfWork.Save();
             }
             return RedirectToAction("Index", "Users");
         }
@@ -146,42 +147,13 @@ namespace MessengerClientDB.Controllers
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
-            UserRolesViewModel user = _userService.GetUserRolesVMById(_usersRepo.GetUsersRoles((int)id));
-            if (user == null)
+            Users user = _unitOfWork.usersRolesRepo.Get((int)id);
+            UserRolesViewModel userVM = _usersService.GetUserRolesVM(user);
+            if (userVM == null)
             {
                 return HttpNotFound();
             }
-            return View(user);
-        }
-
-        // Deletes user from client database & calls a method to delete user from the service database.
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<ActionResult> DeleteConfirmed(int id)
-        {
-            bool deletedFromService = await DeleteFromService(id);
-            if (deletedFromService)
-            {
-                _usersRepo.DeleteUser(id);
-            }
-            return RedirectToAction("Index");
-        }
-
-        // Rest call to the service to delete user from the database. 
-        private async Task<bool> DeleteFromService(int Id)
-        {
-            try
-            {
-                string username = _usersRepo.GetUserName(Id);
-                var requestMessage = new HttpRequestMessage(HttpMethod.Delete, "/api/users/delete?username=" + username);
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                if (response.IsSuccessStatusCode)
-                {
-                    return true;
-                }
-            }
-            catch { }
-            return false;
+            return View(userVM);
         }
 
         // Rest call to service to remove user roles.
@@ -204,9 +176,41 @@ namespace MessengerClientDB.Controllers
         {
             if (disposing)
             {
-                _usersRepo.Dispose();
+                _unitOfWork.Dispose();
             }
             base.Dispose(disposing);
         }
     }
+
+    /*
+        // Deletes user from client database & calls a method to delete user from the service database.
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public async Task<ActionResult> DeleteConfirmed(int id)
+        {
+            bool deletedFromService = await DeleteFromService(id);
+            if (deletedFromService)
+            {
+                _usersRepo.DeleteUser(id);
+            }
+            return RedirectToAction("Index");
+        }
+
+        // Rest call to the service to delete user from the database. 
+        private async Task<bool> DeleteFromService(int Id)
+        {
+            try
+            {
+                string username = _unitOfWork.usersRepo.GetUserName(Id);
+                var requestMessage = new HttpRequestMessage(HttpMethod.Delete, "/api/users/delete?username=" + username);
+                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
+                if (response.IsSuccessStatusCode)
+                {
+                    return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+*/
 }

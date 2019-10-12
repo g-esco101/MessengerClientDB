@@ -9,33 +9,24 @@ namespace MessengerClientDB.Models
         public const int HASH_SIZE = 32;
         public const int ITERATION_COUNT = 50000;
 
-        // Generates a hash given the password & the salt. Returns the hashed password. 
+        // Given a password, it generates the hash & returns it along with its salt & iteration count.
         public static string HashGenerator(string password)
         {
-            string hash, hashSaltIter;
             string salt = SaltGenerator();
-            hash = HashHelper(password, salt, ITERATION_COUNT);
-            hashSaltIter = hash + ":" + salt + ":" + ITERATION_COUNT;
-            return hashSaltIter;
+            string hash = HashHelper(password, salt, ITERATION_COUNT);
+            return hash + ":" + salt + ":" + ITERATION_COUNT;
         }
 
-        // Generates a hash given the password & the salt. Returns the hashed password. 
-        public static string ReproduceHash(string password, string salt, int iterationCount)
+        // Reproduces the hash by using the stored salt, the stored iteration count, & the
+        // password the user entered to login.
+        public static bool RightPassword(string storedInfo, string providedPassword)
         {
-            string hash, hashSaltIter;
-            hash = HashHelper(password, salt, iterationCount);
-            hashSaltIter = hash + ":" + salt + ":" + iterationCount;
-            return hashSaltIter;
+            string[] values = storedInfo.Split(':');
+            string providedHash = HashHelper(providedPassword, values[1], Convert.ToInt32(values[2]));
+            return CompareHashes(values[0], providedHash);
         }
 
-        public static bool CheckHash(string hashSaltIter, string providedPassword)
-        {
-            string hashToCompare;
-            string[] values = hashSaltIter.Split(':');
-            hashToCompare = HashHelper(providedPassword, values[1], Convert.ToInt32(values[2]));
-            return CompareHashes(values[0], hashToCompare);
-        }
-
+        // Produces a hash value given a password, salt, & iteration count.
         private static string HashHelper(string password, string salt, int iterations)
         {
             byte[] slt = Convert.FromBase64String(salt);
@@ -66,5 +57,15 @@ namespace MessengerClientDB.Models
             return (differences == 0);
         }
 
+        /*
+        // Reproduces the hash by using the stored salt, the stored iteration count, & the
+        // password the user entered to login.
+        public static string ReproduceHash(string providedPassword, string salt, int iterationCount)
+        {
+            string hash = HashHelper(providedPassword, salt, iterationCount);
+            return hash + ":" + salt + ":" + iterationCount;
+        }
+
+        */
     }
 }

@@ -1,5 +1,6 @@
-﻿using MessengerClientDB.Models;
-using MessengerClientDB.Repositories;
+﻿using MessengerClientDB.Helpers;
+using MessengerClientDB.Models;
+using MessengerClientDB.Unity;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
@@ -19,11 +20,11 @@ namespace MessengerClientDB.Controllers
 {
     public class AccountsController : Controller
     {
-        private IAccountsRepository _accountsRepo;
+        private IUnitOfWork _unitOfWork;
 
-        public AccountsController(IAccountsRepository accountsRepository)
+        public AccountsController()
         {
-            this._accountsRepo = accountsRepository;
+            _unitOfWork = new UnitOfWork(new MessengerClient_DBEntities());
         }
 
         public ActionResult Login()
@@ -35,49 +36,44 @@ namespace MessengerClientDB.Controllers
         [HttpPost]
         [AllowAnonymous]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Login(LoginViewModel loginViewModel)
+        public async Task<ActionResult> Login(LoginViewModel loginVM)
         {
-            bool validUser, validToken; string hashSaltIterProvided;
             if (!ModelState.IsValid)
             {
-                return View(loginViewModel);
+                return View(loginVM);
+            }
+            if (ValidationHelper.IsNullEmptyWhiteSpace(loginVM.Username, loginVM.HashedPassword))
+            {
+                return View();
             }
             try
             {
-
-                if (!_accountsRepo.UserExists(loginViewModel.Username))
+                var user = _unitOfWork.usersRolesRepo.SingleOrDefault(u => u.Username.ToLower() == loginVM.Username.ToLower());
+                if (user == null)
                 {
                     ModelState.AddModelError("Username", "User does not exist. Please register.");
-                    return View(loginViewModel);
+                    return View(loginVM);
                 }
-                hashSaltIterProvided = _accountsRepo.ReprodcueHash(loginViewModel.Username, loginViewModel.HashedPassword);
-                validUser = _accountsRepo.ValidLogin(loginViewModel.Username, loginViewModel.HashedPassword);
-                if (validUser)
+                if (Hasher.RightPassword(user.HashedPassword, loginVM.HashedPassword))
                 {
-                    validToken = await LoginHelper(loginViewModel.Username, hashSaltIterProvided);
+                    bool validToken = await LoginHelper(loginVM.Username, user.HashedPassword);
                     if (validToken)
                     {
                         return RedirectToAction("Index", "Messages");
                     }
                 }
                 ModelState.AddModelError("", "Invalid Username or Password");
-                return View();
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine("Login - error: " + ex.Message);
-            }
+            catch { }
             return View();
         }
 
         private async Task<bool> LoginHelper(string username, string hashSaltIter)
-        {
-            bool tokenOk;
+        {           
             try
             {
                 FormsAuthentication.SetAuthCookie(username, false);
-       //         await RegisterService(username, hashSaltIter);
-                tokenOk = await getServiceTokenAsync(username, hashSaltIter);
+                bool tokenOk = await getServiceTokenAsync(username, hashSaltIter);
                 return true;
             }
             catch (Exception ex)
@@ -91,54 +87,59 @@ namespace MessengerClientDB.Controllers
         {
             return View();
         }
-        
+
         // POST: /Account/Register
         [HttpPost]
         [AllowAnonymous]
         [ValidateAntiForgeryToken]
-        //        public async Task<ActionResult> Register(RegisterViewModel registerViewModel)
-        public async Task<ActionResult> Register(RegisterViewModel registerViewModel, IUsersRepository usersRepository)
+        public async Task<ActionResult> Register(RegisterViewModel registerViewModel)
         {
-            string hashedPwd; bool tokenOk, registerOk;
             if (!ModelState.IsValid)
             {
                 return View(registerViewModel);
             }
-            if (_accountsRepo.UserExists(registerViewModel.Username))
+            if (ValidationHelper.IsNullEmptyWhiteSpace(registerViewModel.Username, registerViewModel.HashedPassword))
+            {
+                return View();
+            }
+            var user = _unitOfWork.usersRolesRepo.SingleOrDefault(r => r.Username.ToLower() == registerViewModel.Username.ToLower());
+            if (user != null)
             {
                 ModelState.AddModelError("Username", "User already exists");
                 return View(registerViewModel);
             }
-            hashedPwd = Hasher.HashGenerator(registerViewModel.HashedPassword);
-            if(_accountsRepo.AddUser(registerViewModel.Username, hashedPwd, usersRepository))
+            try
             {
-                registerOk = await RegisterService(registerViewModel.Username, hashedPwd);
+                string hashInfo = Hasher.HashGenerator(registerViewModel.HashedPassword);
+                _unitOfWork.BeginTransaction();
+                user = new Users() { Username = registerViewModel.Username, HashedPassword = hashInfo };
+                _unitOfWork.usersRolesRepo.Add(user);
+                string[] role = { "User" };
+                _unitOfWork.usersRolesRepo.AddRoles(registerViewModel.Username, role);
+                bool registerOk = await RegisterService(registerViewModel.Username, hashInfo, role[0]);
                 if (registerOk)
                 {
-                    tokenOk = await getServiceTokenAsync(registerViewModel.Username, hashedPwd);
+                    bool tokenOk = await getServiceTokenAsync(registerViewModel.Username, hashInfo);
+                    _unitOfWork.CommitTransaction();
                     return RedirectToAction("Index", "Home");
                 }
+            }
+            catch
+            {
+                _unitOfWork.Rollback();
             }
             return View();
         }
 
-        [HttpPost]
-        private async Task<bool> RegisterService(string username, string password)
+    //    [HttpPost]
+        private async Task<bool> RegisterService(string username, string password, string role)
         {
-            string user, pwd, roles = "User";
-            if (String.IsNullOrEmpty(username) || String.IsNullOrWhiteSpace(username) || String.IsNullOrEmpty(password) || String.IsNullOrWhiteSpace(password))
-            {
-                return false;
-            }
             try
             {
-                user = HttpUtility.UrlEncode(username);
-                pwd = HttpUtility.UrlEncode(password);
-                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/users/register?username=" + user + "&password=" + pwd + "&roles=" + roles);
+                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/users/register?username=" + HttpUtility.UrlEncode(username) + "&password=" + HttpUtility.UrlEncode(password) + "&roles=" + role);
                 var response = await MvcApplication._httpClient.SendAsync(requestMessage);
                 if (response.IsSuccessStatusCode)
                 {
-                    System.Diagnostics.Debug.WriteLine("DeleteFromService - End - true");
                     return true;
                 }
             }
@@ -146,16 +147,9 @@ namespace MessengerClientDB.Controllers
             return false;
         }
 
-        [HttpPost]
+   //     [HttpPost]
         private async Task<bool> getServiceTokenAsync(string username, string hashedPwd)
         {
-            JObject json;
-            string jsonContent, token = "User not found";
-            HttpContent requestContent;
-            if (String.IsNullOrEmpty(username) || String.IsNullOrWhiteSpace(username) || String.IsNullOrEmpty(hashedPwd) || String.IsNullOrWhiteSpace(hashedPwd))
-            {
-                return false;
-            }
             var formData = new List<KeyValuePair<string, string>>();
             formData.Add(new KeyValuePair<string, string>("username", username));
             formData.Add(new KeyValuePair<string, string>("password", hashedPwd));
@@ -165,10 +159,10 @@ namespace MessengerClientDB.Controllers
                 var request = new HttpRequestMessage(HttpMethod.Post, "/token");
                 request.Content = new FormUrlEncodedContent(formData);
                 var response = await MvcApplication._httpClient.SendAsync(request);
-                requestContent = response.Content;
-                jsonContent = requestContent.ReadAsStringAsync().Result;
-                json = JObject.Parse(jsonContent);
-                token = json.GetValue("access_token").ToString();
+                HttpContent requestContent = response.Content;
+                string jsonContent = requestContent.ReadAsStringAsync().Result;
+                JObject json = JObject.Parse(jsonContent);
+                string token = json.GetValue("access_token").ToString();
                 MvcApplication._httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 return true;
             }

@@ -4,12 +4,10 @@ using System.Web.Mvc;
 using MessengerClientDB.Models;
 using System.Net.Http;
 using Microsoft.AspNet.Identity;
-using System.Net.Http.Headers;
-using System.Web;
 using System.Net.Http.Formatting;
 using System.Linq;
 using System.Collections.Generic;
-using MessengerClientDB.Repositories;
+using MessengerClientDB.Unity;
 using MessengerClientDB.Services;
 
 namespace MessengerClientDB.Controllers
@@ -17,15 +15,16 @@ namespace MessengerClientDB.Controllers
     [Authorize(Roles = "Admin,User")]
     public class MessagesController : Controller
     {
-        private IMessagesRepository _messagesRepo;
+        private IUnitOfWork _unitOfWork;
 
         private IMessageService _messagesService;
 
-        public MessagesController(IMessagesRepository msgsRepository, IMessageService msgsService)
+        public MessagesController(IMessageService messagesService)
         {
-            this._messagesRepo = msgsRepository;
-            this._messagesService = msgsService;
+            _unitOfWork = new UnitOfWork(new MessengerClient_DBEntities());
+            _messagesService = messagesService;
         }
+
 
         public ActionResult Index(string SearchReceiverID)
         {
@@ -33,9 +32,12 @@ namespace MessengerClientDB.Controllers
             if (myId == null)
             {
                 return HttpNotFound();
-             //   return View();
             }
-            var messages = _messagesRepo.GetMessages(myId, SearchReceiverID);
+            var messages = _unitOfWork.messagesRepo.GetAllMessagesOrdered(myId);
+            if (!string.IsNullOrEmpty(SearchReceiverID))
+            {
+                messages = _messagesService.FilteredMessages(messages, SearchReceiverID);
+            }
             if (messages == null)
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
@@ -44,18 +46,20 @@ namespace MessengerClientDB.Controllers
         }
 
         // GET: Messages/Details/5
-        public async Task<ActionResult> Read(int? id)
+        public ActionResult Read(int? id)
         {
             Messages message;
             if (id == null)
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
-            message = await _messagesRepo.GetReadAsync(id);
+            message = _unitOfWork.messagesRepo.Get((int)id);
             if (message == null)
             {
                 return HttpNotFound();
             }
+            message.Read = "Read";
+            _unitOfWork.Save();
             return View(message);
         }
 
@@ -67,7 +71,7 @@ namespace MessengerClientDB.Controllers
             {
                 return View();
             }
-            reply = _messagesRepo.GetReply(id);
+            reply = _unitOfWork.messagesRepo.Get((int)id);
             return View(reply);
         }
 
@@ -84,27 +88,17 @@ namespace MessengerClientDB.Controllers
             {
                 string myID = User.Identity.GetUserName();
                 var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/message/send");
-
                 message = _messagesService.CreateMessage(myID, message);
                 requestMessage.Content = new ObjectContent(typeof(Messages), message, new JsonMediaTypeFormatter());
                 var response = await MvcApplication._httpClient.SendAsync(requestMessage);
                 if (response.IsSuccessStatusCode)
                 {
-                    try
-                    {
-                        _messagesRepo.SaveMessage(message);
-                        return RedirectToAction("Index");
-                    }
-                    catch (HttpRequestException ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine("Exception :{0} ", ex.Message);
-                    }
+                    _unitOfWork.messagesRepo.Add(message);
+                    _unitOfWork.Save();
+                    return RedirectToAction("Index");
                 }
             }
-            catch (HttpRequestException ex)
-            {
-                System.Diagnostics.Debug.WriteLine("Exception :{0} ", ex.Message);
-            }
+            catch { }
             return View(message);
         }
 
@@ -131,19 +125,15 @@ namespace MessengerClientDB.Controllers
             {
                 var requestMessage = new HttpRequestMessage(HttpMethod.Get, "/api/message/receive?myId=" + User.Identity.GetUserName() + "&received=" + received + "&sent=" + sent);
                 var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-
-       //         var response = await MvcApplication._httpClient.GetAsync("/api/message/receive?myId=" + User.Identity.GetUserName() + "&receivedMsgs=" + received + "&sentMsgs=" + sent);
                 List<Messages> myMessages = null;
                 if (response.IsSuccessStatusCode)
                 {
                     myMessages = await response.Content.ReadAsAsync<List<Messages>>();
-                    _messagesRepo.SaveMessages(myMessages);
+                    _unitOfWork.messagesRepo.AddRange(myMessages);
+                    _unitOfWork.Save();
                 }
             }
-            catch (HttpRequestException ex)
-            {
-                System.Diagnostics.Debug.WriteLine("Exception :{0} ", ex.Message);
-            }
+            catch { }
             return RedirectToAction("Index");
         }
 
@@ -173,8 +163,6 @@ namespace MessengerClientDB.Controllers
             {
                 var requestMessage = new HttpRequestMessage(HttpMethod.Delete, "/api/message/delete?myId=" + User.Identity.GetUserName() + "&received=" + received + "&sent=" + sent);
                 var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-
-       //         var response = await MvcApplication._httpClient.DeleteAsync("/api/message/delete?myId=" + User.Identity.GetUserName() + "&received=" + received + "&sent=" + sent);
                 if (response.IsSuccessStatusCode)
                 {
                     JsonContent = response.Content.ReadAsStringAsync().Result;
@@ -189,13 +177,13 @@ namespace MessengerClientDB.Controllers
         }
 
         // GET: Messages/Delete/5
-        public async Task<ActionResult> Delete(int? id)
+        public ActionResult Delete(int? id)
         {
             if (id == null)
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
-            Messages message = await _messagesRepo.GetMessageAsync(id);
+            Messages message = _unitOfWork.messagesRepo.Get((int)id);
             if (message == null)
             {
                 return HttpNotFound();
@@ -206,9 +194,15 @@ namespace MessengerClientDB.Controllers
         // POST: Messages/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> DeleteConfirmedAsync(int id)
+        public ActionResult DeleteConfirmedAsync(int id)
         {
-            await _messagesRepo.DeleteAsync(id);
+            Messages message = _unitOfWork.messagesRepo.Get(id);
+            if (message == null)
+            {
+                return HttpNotFound();
+            }
+            _unitOfWork.messagesRepo.Remove(message);
+            _unitOfWork.Save();
             return RedirectToAction("Index");
         }
 
@@ -230,7 +224,7 @@ namespace MessengerClientDB.Controllers
         {
             if (disposing)
             {
-                _messagesRepo.Dispose();
+                _unitOfWork.Dispose();
             }
             base.Dispose(disposing);
         }

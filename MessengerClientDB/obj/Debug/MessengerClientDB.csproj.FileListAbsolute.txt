@@ -80,3 +80,4 @@ C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bi
 C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\System.Runtime.CompilerServices.Unsafe.xml
 C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\Unity.Abstractions.pdb
 C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\Unity.Container.pdb
+C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\obj\Debug\MessengerClientDB.csprojAssemblyReference.cache

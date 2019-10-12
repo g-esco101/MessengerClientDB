@@ -2,6 +2,9 @@ using System.Web.Mvc;
 using Unity;
 using Unity.Mvc5;
 using MessengerClientDB.Repositories;
+using MessengerClientDB.Roles;
+using MessengerClientDB.Services;
+using MessengerClientDB.Unity;
 
 namespace MessengerClientDB
 {
@@ -15,10 +18,11 @@ namespace MessengerClientDB
             // it is NOT necessary to register your controllers
 
             // e.g. container.RegisterType<ITestService, TestService>();
-            container.RegisterType<IAccountsRepository, AccountsRepository>();
             container.RegisterType<IMessagesRepository, MessagesRepository>();
-            container.RegisterType<IUsersRepository, UsersRepository>();
-
+            container.RegisterType<IUsersRolesRepository, UsersRolesRepository>();
+            container.RegisterType<IMessageService, MessageService>();
+            container.RegisterType<IUnitOfWork, UnitOfWork>();
+            container.RegisterType<IUsersService, UsersService>();          
 
             DependencyResolver.SetResolver(new UnityDependencyResolver(container));
         }
