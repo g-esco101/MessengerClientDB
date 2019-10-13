@@ -1,13 +1,9 @@
 ﻿using MessengerClientDB.Helpers;
 using MessengerClientDB.Models;
+using MessengerClientDB.Restful;
 using MessengerClientDB.Unity;
-using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using System.Web;
 using System.Web.Mvc;
 using System.Web.Security;
 
@@ -22,9 +18,12 @@ namespace MessengerClientDB.Controllers
     {
         private IUnitOfWork _unitOfWork;
 
-        public AccountsController()
+        private IAccountRest _accountRest;
+
+        public AccountsController(IAccountRest accountRest)
         {
             _unitOfWork = new UnitOfWork(new MessengerClient_DBEntities());
+            _accountRest = accountRest;
         }
 
         public ActionResult Login()
@@ -69,11 +68,11 @@ namespace MessengerClientDB.Controllers
         }
 
         private async Task<bool> LoginHelper(string username, string hashSaltIter)
-        {           
+        {
             try
             {
                 FormsAuthentication.SetAuthCookie(username, false);
-                bool tokenOk = await getServiceTokenAsync(username, hashSaltIter);
+                bool tokenOk = await _accountRest.GetServiceTokenAsync(username, hashSaltIter);
                 return true;
             }
             catch (Exception ex)
@@ -111,65 +110,26 @@ namespace MessengerClientDB.Controllers
             try
             {
                 string hashInfo = Hasher.HashGenerator(registerViewModel.HashedPassword);
-                _unitOfWork.BeginTransaction();
+                //           _unitOfWork.BeginTransaction();
                 user = new Users() { Username = registerViewModel.Username, HashedPassword = hashInfo };
                 _unitOfWork.usersRolesRepo.Add(user);
+                _unitOfWork.Save(); // Must save here so that user is in database when AddRoles executes two lines below.
                 string[] role = { "User" };
                 _unitOfWork.usersRolesRepo.AddRoles(registerViewModel.Username, role);
-                bool registerOk = await RegisterService(registerViewModel.Username, hashInfo, role[0]);
+                _unitOfWork.Save();
+                bool registerOk = await _accountRest.RegisterServiceAsync(registerViewModel.Username, hashInfo, role[0]);
                 if (registerOk)
                 {
-                    bool tokenOk = await getServiceTokenAsync(registerViewModel.Username, hashInfo);
+                    bool tokenOk = await _accountRest.GetServiceTokenAsync(registerViewModel.Username, hashInfo);
                     _unitOfWork.CommitTransaction();
                     return RedirectToAction("Index", "Home");
                 }
             }
             catch
             {
-                _unitOfWork.Rollback();
+                //          _unitOfWork.Rollback();
             }
             return View();
-        }
-
-    //    [HttpPost]
-        private async Task<bool> RegisterService(string username, string password, string role)
-        {
-            try
-            {
-                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/users/register?username=" + HttpUtility.UrlEncode(username) + "&password=" + HttpUtility.UrlEncode(password) + "&roles=" + role);
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                if (response.IsSuccessStatusCode)
-                {
-                    return true;
-                }
-            }
-            catch { }
-            return false;
-        }
-
-   //     [HttpPost]
-        private async Task<bool> getServiceTokenAsync(string username, string hashedPwd)
-        {
-            var formData = new List<KeyValuePair<string, string>>();
-            formData.Add(new KeyValuePair<string, string>("username", username));
-            formData.Add(new KeyValuePair<string, string>("password", hashedPwd));
-            formData.Add(new KeyValuePair<string, string>("grant_type", "password"));
-            try
-            {
-                var request = new HttpRequestMessage(HttpMethod.Post, "/token");
-                request.Content = new FormUrlEncodedContent(formData);
-                var response = await MvcApplication._httpClient.SendAsync(request);
-                HttpContent requestContent = response.Content;
-                string jsonContent = requestContent.ReadAsStringAsync().Result;
-                JObject json = JObject.Parse(jsonContent);
-                string token = json.GetValue("access_token").ToString();
-                MvcApplication._httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
         }
 
         public ActionResult Logout()

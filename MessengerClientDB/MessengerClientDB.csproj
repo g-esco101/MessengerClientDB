@@ -214,6 +214,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App_Start\BundlesConfig.cs" />
+    <Compile Include="App_Start\MessageRest.cs" />
     <Compile Include="App_Start\RouteConfig.cs" />
     <Compile Include="App_Start\UnityConfig.cs" />
     <Compile Include="Controllers\AccountsController.cs" />
@@ -264,6 +265,12 @@
     <Compile Include="Repositories\MessagesRepository.cs" />
     <Compile Include="Repositories\Repository.cs" />
     <Compile Include="Repositories\UsersRolesRepository.cs" />
+    <Compile Include="Restful\AccountRest.cs" />
+    <Compile Include="Restful\IAccountRest.cs" />
+    <Compile Include="Restful\IMessagesRest.cs" />
+    <Compile Include="Restful\IUsersRest.cs" />
+    <Compile Include="Restful\MessagesRest.cs" />
+    <Compile Include="Restful\UsersRest.cs" />
     <Compile Include="Roles\UsersRoleProvider.cs" />
     <Compile Include="Services\IMessageService.cs" />
     <Compile Include="Services\IUsersService.cs" />

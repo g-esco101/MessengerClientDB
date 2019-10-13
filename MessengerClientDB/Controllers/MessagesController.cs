@@ -1,14 +1,13 @@
-﻿using System.Threading.Tasks;
-using System.Net;
-using System.Web.Mvc;
-using MessengerClientDB.Models;
-using System.Net.Http;
-using Microsoft.AspNet.Identity;
-using System.Net.Http.Formatting;
-using System.Linq;
-using System.Collections.Generic;
-using MessengerClientDB.Unity;
+﻿using MessengerClientDB.Models;
+using MessengerClientDB.Restful;
 using MessengerClientDB.Services;
+using MessengerClientDB.Unity;
+using Microsoft.AspNet.Identity;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Threading.Tasks;
+using System.Web.Mvc;
 
 namespace MessengerClientDB.Controllers
 {
@@ -19,10 +18,14 @@ namespace MessengerClientDB.Controllers
 
         private IMessageService _messagesService;
 
-        public MessagesController(IMessageService messagesService)
+        private IMessagesRest _messageRest;
+
+
+        public MessagesController(IMessageService messagesService, IMessagesRest messageRest)
         {
             _unitOfWork = new UnitOfWork(new MessengerClient_DBEntities());
             _messagesService = messagesService;
+            _messageRest = messageRest;
         }
 
 
@@ -87,11 +90,9 @@ namespace MessengerClientDB.Controllers
             try
             {
                 string myID = User.Identity.GetUserName();
-                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/message/send");
                 message = _messagesService.CreateMessage(myID, message);
-                requestMessage.Content = new ObjectContent(typeof(Messages), message, new JsonMediaTypeFormatter());
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                if (response.IsSuccessStatusCode)
+                bool response = await _messageRest.SendAsync(message);
+                if (response)
                 {
                     _unitOfWork.messagesRepo.Add(message);
                     _unitOfWork.Save();
@@ -123,12 +124,9 @@ namespace MessengerClientDB.Controllers
             }
             try
             {
-                var requestMessage = new HttpRequestMessage(HttpMethod.Get, "/api/message/receive?myId=" + User.Identity.GetUserName() + "&received=" + received + "&sent=" + sent);
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                List<Messages> myMessages = null;
-                if (response.IsSuccessStatusCode)
+                List<Messages> myMessages = await _messageRest.ArchiveAsync(User.Identity.GetUserName(), received, sent);
+                if (myMessages != null)
                 {
-                    myMessages = await response.Content.ReadAsAsync<List<Messages>>();
                     _unitOfWork.messagesRepo.AddRange(myMessages);
                     _unitOfWork.Save();
                 }
@@ -149,8 +147,7 @@ namespace MessengerClientDB.Controllers
         public async Task<ActionResult> ArchiveDelete(bool CBReceived = false, bool CBSent = false)
         {
             bool received = false;
-            bool sent = false; ;
-            string JsonContent = "0";
+            bool sent = false;
             if (CBReceived)
             {
                 received = true;
@@ -159,20 +156,14 @@ namespace MessengerClientDB.Controllers
             {
                 sent = true;
             }
+
+            string deleteCount = "0";
             try
             {
-                var requestMessage = new HttpRequestMessage(HttpMethod.Delete, "/api/message/delete?myId=" + User.Identity.GetUserName() + "&received=" + received + "&sent=" + sent);
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                if (response.IsSuccessStatusCode)
-                {
-                    JsonContent = response.Content.ReadAsStringAsync().Result;
-                }
+                deleteCount = await _messageRest.DeleteAsync(User.Identity.GetUserName(), received, sent);
             }
-            catch (HttpRequestException ex)
-            {
-                System.Diagnostics.Debug.WriteLine("Exception :{0} ", ex.Message);
-            }
-            ViewBag.DeleteCount = JsonContent + " message(s) deleted";
+            catch { }
+            ViewBag.DeleteCount = deleteCount + " message(s) deleted";
             return View();
         }
 

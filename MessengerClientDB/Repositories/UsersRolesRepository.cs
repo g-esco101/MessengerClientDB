@@ -1,5 +1,4 @@
 ﻿using MessengerClientDB.Models;
-using System;
 using System.Linq;
 
 namespace MessengerClientDB.Repositories
@@ -18,7 +17,7 @@ namespace MessengerClientDB.Repositories
 
         public int AddRoles(string username, string[] roleNames)
         {
-            UserRolesMapping map; string roleName; int rolesAdded = 0;         
+            UserRolesMapping map; string roleName; int rolesAdded = 0;
             for (int i = 0; i < roleNames.Length; i++)
             {
                 try

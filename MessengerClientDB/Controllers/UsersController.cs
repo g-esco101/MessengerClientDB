@@ -1,12 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using MessengerClientDB.Models;
+using MessengerClientDB.Restful;
+using MessengerClientDB.Services;
+using MessengerClientDB.Unity;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Mvc;
-using MessengerClientDB.Models;
-using MessengerClientDB.Repositories;
-using MessengerClientDB.Services;
-using MessengerClientDB.Unity;
 
 namespace MessengerClientDB.Controllers
 {
@@ -17,10 +17,13 @@ namespace MessengerClientDB.Controllers
 
         private IUsersService _usersService;
 
-        public UsersController(IUsersService usersService)
+        private IUsersRest _usersRest;
+
+        public UsersController(IUsersService usersService, IUsersRest usersRest)
         {
             _unitOfWork = new UnitOfWork(new MessengerClient_DBEntities());
             _usersService = usersService;
+            _usersRest = usersRest;
         }
 
         // GET: Users
@@ -57,12 +60,11 @@ namespace MessengerClientDB.Controllers
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Add([Bind(Include = "Id,Checked")]UpdateRolesViewModel model)
         {
-            string[] myRoles, allRoles; bool addRolesToService = false;
-            int checkedLength; string username;
-            List<string> updatedRoles = new List<string>();
-            allRoles = _unitOfWork.usersRolesRepo.GetAllRoles();
-            username = _unitOfWork.usersRolesRepo.Get(model.Id).Username;
-            checkedLength = model.Checked.Length;
+            bool addRolesToService = false;
+            var updatedRoles = new List<string>();
+            string[] allRoles = _unitOfWork.usersRolesRepo.GetAllRoles();
+            string username = _unitOfWork.usersRolesRepo.Get(model.Id).Username;
+            int checkedLength = model.Checked.Length;
             for (int i = 0; i < checkedLength; i++)
             {
                 if (model.Checked[i])
@@ -70,8 +72,8 @@ namespace MessengerClientDB.Controllers
                     updatedRoles.Add(allRoles[i]);
                 }
             }
-            myRoles = updatedRoles.ToArray();
-            addRolesToService = await AddRolesService(username, _usersService.stringArrToCSV(myRoles));
+            string[] myRoles = updatedRoles.ToArray();
+            addRolesToService = await _usersRest.AddRolesServiceAsync(username, _usersService.stringArrToCSV(myRoles));
             if (addRolesToService)
             {
                 _unitOfWork.usersRolesRepo.AddRoles(username, myRoles);
@@ -80,21 +82,6 @@ namespace MessengerClientDB.Controllers
             return RedirectToAction("Index", "Users");
         }
 
-        // Rest call to service to add user roles.
-        private async Task<bool> AddRolesService(string username, string rolesCSV)
-        {
-            try
-            {
-                var requestMessage = new HttpRequestMessage(HttpMethod.Put, "/api/users/addroles?username=" + username + "&roles=" + rolesCSV);
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                if (response.IsSuccessStatusCode)
-                {
-                    return true;
-                }
-            }
-            catch { }
-            return false;
-        }
         // GET: Users/Edit/5
         public ActionResult Remove(int? id)
         {
@@ -117,12 +104,11 @@ namespace MessengerClientDB.Controllers
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Remove(UpdateRolesViewModel model)
         {
-            string[] myRoles, allRoles; bool removedRolesFromService = false;
-            int checkedLength; string username;
+            bool removedRolesFromService = false;
             List<string> updatedRoles = new List<string>();
-            allRoles = _unitOfWork.usersRolesRepo.GetAllRoles();
-            username = _unitOfWork.usersRolesRepo.Get(model.Id).Username;
-            checkedLength = model.Checked.Length;
+            string[] allRoles = _unitOfWork.usersRolesRepo.GetAllRoles();
+            string username = _unitOfWork.usersRolesRepo.Get(model.Id).Username;
+            int checkedLength = model.Checked.Length;
             for (int i = 0; i < checkedLength; i++)
             {
                 if (model.Checked[i])
@@ -130,7 +116,7 @@ namespace MessengerClientDB.Controllers
                     updatedRoles.Add(allRoles[i]);
                 }
             }
-            myRoles = updatedRoles.ToArray();
+            string[] myRoles = updatedRoles.ToArray();
             removedRolesFromService = await RemoveRolesService(username, _usersService.stringArrToCSV(myRoles));
             if (removedRolesFromService)
             {
@@ -180,18 +166,18 @@ namespace MessengerClientDB.Controllers
             }
             base.Dispose(disposing);
         }
-    }
 
-    /*
+
         // Deletes user from client database & calls a method to delete user from the service database.
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> DeleteConfirmed(int id)
         {
-            bool deletedFromService = await DeleteFromService(id);
+            bool deletedFromService = await DeleteFromService(1032);
             if (deletedFromService)
             {
-                _usersRepo.DeleteUser(id);
+                _unitOfWork.usersRolesRepo.Remove(_unitOfWork.usersRolesRepo.Get(1032));
+                _unitOfWork.Save();
             }
             return RedirectToAction("Index");
         }
@@ -201,7 +187,7 @@ namespace MessengerClientDB.Controllers
         {
             try
             {
-                string username = _unitOfWork.usersRepo.GetUserName(Id);
+                string username = "Tester111";
                 var requestMessage = new HttpRequestMessage(HttpMethod.Delete, "/api/users/delete?username=" + username);
                 var response = await MvcApplication._httpClient.SendAsync(requestMessage);
                 if (response.IsSuccessStatusCode)
@@ -212,5 +198,6 @@ namespace MessengerClientDB.Controllers
             catch { }
             return false;
         }
-*/
+
+    }
 }
