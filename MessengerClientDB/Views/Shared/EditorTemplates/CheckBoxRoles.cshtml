@@ -1,0 +1,6 @@
+﻿@model MessengerClientDB.Models.ViewModels.CheckBoxRoles
+
+@Html.HiddenFor(model => model.ID)
+@Html.CheckBoxFor(model => model.IsChecked)
+@Html.LabelFor(model => model.IsChecked, Model.Role)
+<br />

@@ -1,0 +1,68 @@
+﻿@model MessengerClientDB.Models.RolesUpdateVM
+
+@{
+    ViewBag.Title = "Add Role";
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Add Role</title>
+</head>
+<body>
+    <h2>Add Roles</h2>
+    <div>
+        <hr />
+        <dl class="dl-horizontal">
+            <dt>
+                @Html.DisplayNameFor(model => model.Username)
+            </dt>
+
+            <dd>
+                @Html.DisplayFor(model => model.Username)
+            </dd>
+            <dt>
+                @Html.DisplayNameFor(model => model.MyRoles)
+            </dt>
+
+            <dd>
+                @Html.DisplayFor(model => model.MyRoles)
+            </dd>
+
+        </dl>
+
+        @using (Html.BeginForm())
+        {
+            @Html.AntiForgeryToken()
+
+            <div class="form-group">
+                <div class="col-md-offset-2 col-md-10">
+                    @foreach (var item in Model.RoleMasters)
+                    {
+                        if (!item.IsChecked)
+                        {
+                            <div class="checkbox">
+                                @Html.CheckBoxFor(x => item.IsChecked)
+                                @Html.Label(item.Role)
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+
+            <div class="form-horizontal">
+                <div class="form-group">
+                    <div class="col-md-offset-2 col-md-10">
+                        <input type="submit" value="Add" class="btn btn-default" /> 
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    <div>
+        @Html.ActionLink("Back to List", "Index")
+    </div>
+</body>
+</html>

@@ -56,16 +56,5 @@ namespace MessengerClientDB.Models
             }
             return (differences == 0);
         }
-
-        /*
-        // Reproduces the hash by using the stored salt, the stored iteration count, & the
-        // password the user entered to login.
-        public static string ReproduceHash(string providedPassword, string salt, int iterationCount)
-        {
-            string hash = HashHelper(providedPassword, salt, iterationCount);
-            return hash + ":" + salt + ":" + iterationCount;
-        }
-
-        */
     }
 }

@@ -21,5 +21,6 @@ namespace MessengerClientDB.Models
         public Nullable<System.TimeSpan> Time { get; set; }
         public string Contents { get; set; }
         public string Read { get; set; }
+        public Nullable<bool> Queued { get; set; }
     }
 }

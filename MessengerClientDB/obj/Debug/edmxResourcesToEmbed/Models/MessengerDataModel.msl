@@ -1,9 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Mapping Space="C-S" xmlns="http://schemas.microsoft.com/ado/2009/11/mapping/cs">
-  <EntityContainerMapping StorageEntityContainer="MessengerModelStoreContainer" CdmEntityContainer="MessengerClient_DBEntities">
+  <EntityContainerMapping StorageEntityContainer="MessengerClientDBStoreContainer" CdmEntityContainer="MessengerClient_DBEntities">
     <EntitySetMapping Name="Messages">
-      <EntityTypeMapping TypeName="MessengerModel.Messages">
+      <EntityTypeMapping TypeName="MessengerClientDB.Messages">
         <MappingFragment StoreEntitySet="Messages">
+          <ScalarProperty Name="Queued" ColumnName="Queued" />
           <ScalarProperty Name="ID" ColumnName="ID" />
           <ScalarProperty Name="SenderID" ColumnName="SenderID" />
           <ScalarProperty Name="ReceiverID" ColumnName="ReceiverID" />
@@ -15,7 +16,7 @@
       </EntityTypeMapping>
     </EntitySetMapping>
     <EntitySetMapping Name="RoleMaster">
-      <EntityTypeMapping TypeName="MessengerModel.RoleMaster">
+      <EntityTypeMapping TypeName="MessengerClientDB.RoleMaster">
         <MappingFragment StoreEntitySet="RoleMaster">
           <ScalarProperty Name="ID" ColumnName="ID" />
           <ScalarProperty Name="RoleName" ColumnName="RoleName" />
@@ -23,7 +24,7 @@
       </EntityTypeMapping>
     </EntitySetMapping>
     <EntitySetMapping Name="UserRolesMapping">
-      <EntityTypeMapping TypeName="MessengerModel.UserRolesMapping">
+      <EntityTypeMapping TypeName="MessengerClientDB.UserRolesMapping">
         <MappingFragment StoreEntitySet="UserRolesMapping">
           <ScalarProperty Name="ID" ColumnName="ID" />
           <ScalarProperty Name="UserID" ColumnName="UserID" />
@@ -32,7 +33,7 @@
       </EntityTypeMapping>
     </EntitySetMapping>
     <EntitySetMapping Name="Users">
-      <EntityTypeMapping TypeName="MessengerModel.Users">
+      <EntityTypeMapping TypeName="MessengerClientDB.Users">
         <MappingFragment StoreEntitySet="Users">
           <ScalarProperty Name="ID" ColumnName="ID" />
           <ScalarProperty Name="Username" ColumnName="Username" />

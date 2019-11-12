@@ -1,11 +1,12 @@
-﻿@model MessengerClientDB.Models.UserRolesViewModel
+﻿@model MessengerClientDB.Models.ViewModels.UserRolesVM
 
 @{
     ViewBag.Title = "Delete User";
 }
 
+<h2>Delete User</h2>
 <div>
-    <h4>Delete user from database</h4>
+    <h5>Deletes the user & user roles from both the client & service databases. The user's sent & received messages are deleted from the client database, & the user's received messages are deleted from the service database.</h5>
     <hr />
     <dl class="dl-horizontal">
         <dt>
@@ -17,11 +18,11 @@
         </dd>
 
         <dt>
-            @Html.DisplayNameFor(model => model.myRoles)
+            @Html.DisplayNameFor(model => model.MyRoles)
         </dt>
 
         <dd>
-            @Html.DisplayFor(model => model.myRoles)
+            @Html.DisplayFor(model => model.MyRoles)
         </dd>
     </dl>
 </div>

@@ -1,13 +1,13 @@
-﻿@model MessengerClientDB.Models.Messages
+﻿@model MessengerClientDB.Models.ViewModels.MessageReadVM
 
 @{
     ViewBag.Title = "Read";
 }
 
-<h2>Marks the message as read.</h2>
+<h2>Read</h2>
 
 <div>
-    <h4>Message</h4>
+    <h5>Mark the message as read/unread.</h5>
     <hr />
     <dl class="dl-horizontal">
         <dt>
@@ -47,9 +47,35 @@
         <dd>
             @Html.DisplayFor(model => model.Contents)
         </dd>
+        <dt>
+            @Html.DisplayNameFor(model => model.Read)
+        </dt>
+        <dd>
+            @Html.DisplayFor(model => model.Read)
+        </dd>
+
+        @using (Html.BeginForm())
+        {
+            @Html.AntiForgeryToken()
+
+            <dt>
+                @Html.DisplayNameFor(model => model.IsRead)
+            </dt>
+            <dd>
+                @Html.CheckBoxFor(model => model.IsRead)
+            </dd>
+            <div class="form-group">
+                <h2/>
+                <div class="col-md-offset-2 col-md-10">
+                    <input type="submit" value="Update" class="btn btn-default" />
+                </div>
+            </div>
+        }
     </dl>
+
 </div>
 <p>
-    @Html.ActionLink("Reply", "Send", new { id = Model.ID }) |
-    @Html.ActionLink("Back to List", "Index", "Messages")
+    @Html.ActionLink("Reply", "SendMessage", new { id = Model.ID }) |
+    @Html.ActionLink("Inbox", "Inbox", "Messages") |
+    @Html.ActionLink("Sent", "Sent", "Messages")
 </p>

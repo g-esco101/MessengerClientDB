@@ -1,16 +1,11 @@
-﻿using MessengerClientDB.Helpers;
-using MessengerClientDB.Models;
+﻿using MessengerClientDB.Models;
+using MessengerClientDB.Models.ViewModels;
 using MessengerClientDB.Restful;
-using MessengerClientDB.Unity;
-using System;
+using MessengerClientDB.Unit;
 using System.Threading.Tasks;
 using System.Web.Mvc;
 using System.Web.Security;
 
-/*
-Add your Unity registrations in the RegisterComponents method of the UnityConfig class. All components that implement IDisposable should be 
-registered with the HierarchicalLifetimeManager to ensure that they are properly disposed at the end of the request.
-*/
 
 namespace MessengerClientDB.Controllers
 {
@@ -20,10 +15,17 @@ namespace MessengerClientDB.Controllers
 
         private IAccountRest _accountRest;
 
+        private string _userRole;
+
+        private int _roleId;
+
         public AccountsController(IAccountRest accountRest)
+
         {
-            _unitOfWork = new UnitOfWork(new MessengerClient_DBEntities());
+            _unitOfWork = new UnitOfWork();
             _accountRest = accountRest;
+            _userRole = "Admin";
+            _roleId = 1;
         }
 
         public ActionResult Login()
@@ -35,51 +37,40 @@ namespace MessengerClientDB.Controllers
         [HttpPost]
         [AllowAnonymous]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Login(LoginViewModel loginVM)
+        public async Task<ActionResult> Login(LoginVM loginVM)
         {
             if (!ModelState.IsValid)
             {
                 return View(loginVM);
             }
-            if (ValidationHelper.IsNullEmptyWhiteSpace(loginVM.Username, loginVM.HashedPassword))
+            string username = loginVM.Username;
+            Users user = await _unitOfWork.usersRolesRepo.GetAsync(username);
+            if (user == null)
             {
-                return View();
+                ModelState.AddModelError(string.Empty, "User does not exist. Please register.");
+                return View(loginVM);
             }
-            try
+            if (Hasher.RightPassword(user.HashedPassword, loginVM.HashedPassword))
             {
-                var user = _unitOfWork.usersRolesRepo.SingleOrDefault(u => u.Username.ToLower() == loginVM.Username.ToLower());
-                if (user == null)
+
+                bool validToken = await LoginHelper(username, user.HashedPassword.Split(':')[0]);
+                if (validToken)
                 {
-                    ModelState.AddModelError("Username", "User does not exist. Please register.");
-                    return View(loginVM);
+                    return RedirectToAction("Inbox", "Messages");
                 }
-                if (Hasher.RightPassword(user.HashedPassword, loginVM.HashedPassword))
-                {
-                    bool validToken = await LoginHelper(loginVM.Username, user.HashedPassword);
-                    if (validToken)
-                    {
-                        return RedirectToAction("Index", "Messages");
-                    }
-                }
-                ModelState.AddModelError("", "Invalid Username or Password");
+                ModelState.AddModelError(string.Empty, "Unable to authenticate.");
+                return View(loginVM);
             }
-            catch { }
-            return View();
+            ModelState.AddModelError(string.Empty, "Invalid Username or Password");
+            return View(loginVM);
         }
 
+        // Creates authentication ticket for the user & gets the bearer token from the service
+        // & stores it in httpClient.DefaultRequestHeaders.Authorization.
         private async Task<bool> LoginHelper(string username, string hashSaltIter)
         {
-            try
-            {
-                FormsAuthentication.SetAuthCookie(username, false);
-                bool tokenOk = await _accountRest.GetServiceTokenAsync(username, hashSaltIter);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine("Login Helper - error: " + ex.Message);
-            }
-            return false;
+            FormsAuthentication.SetAuthCookie(username, false);
+            return await _accountRest.GetServiceTokenAsync(username, hashSaltIter);
         }
 
         public ActionResult Register()
@@ -87,49 +78,47 @@ namespace MessengerClientDB.Controllers
             return View();
         }
 
-        // POST: /Account/Register
+        // Registers the user with the service & the client. 
         [HttpPost]
         [AllowAnonymous]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Register(RegisterViewModel registerViewModel)
+        public async Task<ActionResult> Register(RegisterVM registerViewModel)
         {
             if (!ModelState.IsValid)
             {
+                ModelState.AddModelError(string.Empty, "Please try again.");
                 return View(registerViewModel);
             }
-            if (ValidationHelper.IsNullEmptyWhiteSpace(registerViewModel.Username, registerViewModel.HashedPassword))
-            {
-                return View();
-            }
-            var user = _unitOfWork.usersRolesRepo.SingleOrDefault(r => r.Username.ToLower() == registerViewModel.Username.ToLower());
+            string username = registerViewModel.Username;
+            Users user = await _unitOfWork.usersRolesRepo.GetAsync(username);
             if (user != null)
             {
-                ModelState.AddModelError("Username", "User already exists");
+                ModelState.AddModelError(string.Empty, "User already exists");
                 return View(registerViewModel);
             }
-            try
+            string hashInfo = Hasher.HashGenerator(registerViewModel.HashedPassword);
+            string myHash = hashInfo.Split(':')[0]; // returns the hash
+            user = new Users() { Username = username, HashedPassword = hashInfo };
+            _unitOfWork.usersRolesRepo.Add(user);
+            UserRolesMapping roleMap = new UserRolesMapping() { UserID = user.ID, RoleID = _roleId };
+            _unitOfWork.rolesMappingRepo.Add(roleMap);
+            bool registerOk = await _accountRest.RegisterServiceAsync(username, myHash, _userRole);
+            if (registerOk)
             {
-                string hashInfo = Hasher.HashGenerator(registerViewModel.HashedPassword);
-                //           _unitOfWork.BeginTransaction();
-                user = new Users() { Username = registerViewModel.Username, HashedPassword = hashInfo };
-                _unitOfWork.usersRolesRepo.Add(user);
-                _unitOfWork.Save(); // Must save here so that user is in database when AddRoles executes two lines below.
-                string[] role = { "User" };
-                _unitOfWork.usersRolesRepo.AddRoles(registerViewModel.Username, role);
-                _unitOfWork.Save();
-                bool registerOk = await _accountRest.RegisterServiceAsync(registerViewModel.Username, hashInfo, role[0]);
-                if (registerOk)
+                int saved = await _unitOfWork.SaveAsync();
+                if (saved < 0)
                 {
-                    bool tokenOk = await _accountRest.GetServiceTokenAsync(registerViewModel.Username, hashInfo);
-                    _unitOfWork.CommitTransaction();
-                    return RedirectToAction("Index", "Home");
+                    ModelState.AddModelError(string.Empty, "Unable to save User to client.");
+                    return View(registerViewModel);
+                }
+                bool tokenOk = await LoginHelper(username, myHash);
+                if (tokenOk)
+                {
+                    return RedirectToAction("Inbox", "Messages");
                 }
             }
-            catch
-            {
-                //          _unitOfWork.Rollback();
-            }
-            return View();
+            ModelState.AddModelError(string.Empty, "Unable to register user.");
+            return View(registerViewModel);
         }
 
         public ActionResult Logout()

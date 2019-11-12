@@ -1,0 +1,60 @@
+﻿@model MessengerClientDB.Models.ViewModels.RolesUpdateVM
+
+@{
+    ViewBag.Title = "Update Role";
+}
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Update Role</title>
+</head>
+<body>
+    <h2>Update Roles</h2>
+    <h5>Updates the roles in both the client & service databases. Selected roles are added, & unselected roles will are removed.</h5>
+    <div>
+        <hr />
+        <dl class="dl-horizontal">
+            <dt>
+                @Html.DisplayNameFor(model => model.Username)
+            </dt>
+
+            <dd>
+                @Html.DisplayFor(model => model.Username)
+            </dd>
+            <dt>
+                @Html.DisplayNameFor(model => model.MyRoles)
+            </dt>
+
+            <dd>
+                @Html.DisplayFor(model => model.MyRoles)
+            </dd>
+
+        </dl>
+
+        @using (Html.BeginForm())
+        {
+            @Html.AntiForgeryToken()
+
+            <div class="form-group">
+                <div class="col-md-offset-2 col-md-10">
+                    @Html.EditorFor(model => model.RoleMasters)
+                </div>
+            </div>
+
+            <div class="form-horizontal">
+                <div class="form-group">
+                    <div class="col-md-offset-2 col-md-10">
+                        <input type="submit" value="Update" class="btn btn-default" />
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    <div>
+        @Html.ActionLink("Back to List", "Index")
+    </div>
+</body>
+</html>

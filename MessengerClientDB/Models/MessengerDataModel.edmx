@@ -4,7 +4,7 @@
   <edmx:Runtime>
     <!-- SSDL content -->
     <edmx:StorageModels>
-      <Schema Namespace="MessengerModel.Store" Provider="System.Data.SqlClient" ProviderManifestToken="2012" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
+    <Schema Namespace="MessengerClientDB.Store" Provider="System.Data.SqlClient" ProviderManifestToken="2012" Alias="Self" xmlns:store="http://schemas.microsoft.com/ado/2007/12/edm/EntityStoreSchemaGenerator" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm/ssdl">
         <EntityType Name="Messages">
           <Key>
             <PropertyRef Name="ID" />
@@ -16,6 +16,7 @@
           <Property Name="Time" Type="time" Precision="7" />
           <Property Name="Contents" Type="varchar" MaxLength="1000" />
           <Property Name="Read" Type="varchar" MaxLength="6" />
+          <Property Name="Queued" Type="bit" />
         </EntityType>
         <EntityType Name="RoleMaster">
           <Key>
@@ -64,7 +65,7 @@
             </Dependent>
           </ReferentialConstraint>
         </Association>
-        <EntityContainer Name="MessengerModelStoreContainer">
+        <EntityContainer Name="MessengerClientDBStoreContainer">
           <EntitySet Name="Messages" EntityType="Self.Messages" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="RoleMaster" EntityType="Self.RoleMaster" Schema="dbo" store:Type="Tables" />
           <EntitySet Name="UserRolesMapping" EntityType="Self.UserRolesMapping" Schema="dbo" store:Type="Tables" />
@@ -78,11 +79,10 @@
             <End Role="UserRolesMapping" EntitySet="UserRolesMapping" />
           </AssociationSet>
         </EntityContainer>
-      </Schema>
-    </edmx:StorageModels>
+      </Schema></edmx:StorageModels>
     <!-- CSDL content -->
     <edmx:ConceptualModels>
-      <Schema Namespace="MessengerModel" Alias="Self" annotation:UseStrongSpatialTypes="false" xmlns:annotation="http://schemas.microsoft.com/ado/2009/02/edm/annotation" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm">
+      <Schema Namespace="MessengerClientDB" Alias="Self" annotation:UseStrongSpatialTypes="false" xmlns:annotation="http://schemas.microsoft.com/ado/2009/02/edm/annotation" xmlns:customannotation="http://schemas.microsoft.com/ado/2013/11/edm/customannotation" xmlns="http://schemas.microsoft.com/ado/2009/11/edm">
         <EntityType Name="Messages">
           <Key>
             <PropertyRef Name="ID" />
@@ -94,6 +94,7 @@
           <Property Name="Time" Type="Time" Precision="7" />
           <Property Name="Contents" Type="String" MaxLength="1000" FixedLength="false" Unicode="false" />
           <Property Name="Read" Type="String" MaxLength="6" FixedLength="false" Unicode="false" />
+          <Property Name="Queued" Type="Boolean" />
         </EntityType>
         <EntityType Name="RoleMaster">
           <Key>
@@ -165,10 +166,11 @@
     <!-- C-S mapping content -->
     <edmx:Mappings>
       <Mapping Space="C-S" xmlns="http://schemas.microsoft.com/ado/2009/11/mapping/cs">
-        <EntityContainerMapping StorageEntityContainer="MessengerModelStoreContainer" CdmEntityContainer="MessengerClient_DBEntities">
+        <EntityContainerMapping StorageEntityContainer="MessengerClientDBStoreContainer" CdmEntityContainer="MessengerClient_DBEntities">
           <EntitySetMapping Name="Messages">
-            <EntityTypeMapping TypeName="MessengerModel.Messages">
+            <EntityTypeMapping TypeName="MessengerClientDB.Messages">
               <MappingFragment StoreEntitySet="Messages">
+                <ScalarProperty Name="Queued" ColumnName="Queued" />
                 <ScalarProperty Name="ID" ColumnName="ID" />
                 <ScalarProperty Name="SenderID" ColumnName="SenderID" />
                 <ScalarProperty Name="ReceiverID" ColumnName="ReceiverID" />
@@ -180,7 +182,7 @@
             </EntityTypeMapping>
           </EntitySetMapping>
           <EntitySetMapping Name="RoleMaster">
-            <EntityTypeMapping TypeName="MessengerModel.RoleMaster">
+            <EntityTypeMapping TypeName="MessengerClientDB.RoleMaster">
               <MappingFragment StoreEntitySet="RoleMaster">
                 <ScalarProperty Name="ID" ColumnName="ID" />
                 <ScalarProperty Name="RoleName" ColumnName="RoleName" />
@@ -188,7 +190,7 @@
             </EntityTypeMapping>
           </EntitySetMapping>
           <EntitySetMapping Name="UserRolesMapping">
-            <EntityTypeMapping TypeName="MessengerModel.UserRolesMapping">
+            <EntityTypeMapping TypeName="MessengerClientDB.UserRolesMapping">
               <MappingFragment StoreEntitySet="UserRolesMapping">
                 <ScalarProperty Name="ID" ColumnName="ID" />
                 <ScalarProperty Name="UserID" ColumnName="UserID" />
@@ -197,7 +199,7 @@
             </EntityTypeMapping>
           </EntitySetMapping>
           <EntitySetMapping Name="Users">
-            <EntityTypeMapping TypeName="MessengerModel.Users">
+            <EntityTypeMapping TypeName="MessengerClientDB.Users">
               <MappingFragment StoreEntitySet="Users">
                 <ScalarProperty Name="ID" ColumnName="ID" />
                 <ScalarProperty Name="Username" ColumnName="Username" />

@@ -1,4 +1,4 @@
-﻿@model IEnumerable<MessengerClientDB.Models.UserRolesViewModel>
+﻿@model IEnumerable<MessengerClientDB.Models.ViewModels.UserRolesVM>
 
 @{
     ViewBag.Title = "Index";
@@ -12,7 +12,7 @@
             @Html.DisplayNameFor(model => model.Username)
         </th>
         <th>
-            @Html.DisplayNameFor(model => model.myRoles)
+            @Html.DisplayNameFor(model => model.MyRoles)
         </th>
     </tr>
 
@@ -23,11 +23,10 @@
             @Html.DisplayFor(modelItem => item.Username)
         </td>
         <td>
-            @Html.DisplayFor(modelItem => item.myRoles)
+            @Html.DisplayFor(modelItem => item.MyRoles)
         </td>
         <td>
-            @Html.ActionLink("Add roles", "Add", new { id = item.Id }) |
-            @Html.ActionLink("Remove roles", "Remove", new { id = item.Id }) |
+            @Html.ActionLink("Update Roles", "UpdateRoles", new { id = item.Id }) |
             @Html.ActionLink("Delete user", "Delete", new { id = item.Id })
         </td>
     </tr>

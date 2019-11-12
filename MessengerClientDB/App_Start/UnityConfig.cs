@@ -1,7 +1,6 @@
 using MessengerClientDB.Repositories;
 using MessengerClientDB.Restful;
-using MessengerClientDB.Services;
-using MessengerClientDB.Unity;
+using MessengerClientDB.Unit;
 using System.Web.Mvc;
 using Unity;
 using Unity.Mvc5;
@@ -19,14 +18,12 @@ namespace MessengerClientDB
 
             // e.g. container.RegisterType<ITestService, TestService>();
             container.RegisterType<IMessagesRepository, MessagesRepository>();
-            container.RegisterType<IUsersRolesRepository, UsersRolesRepository>();
-            container.RegisterType<IMessageService, MessageService>();
+            container.RegisterType<IUsersRepository, UsersRepository>();
             container.RegisterType<IUnitOfWork, UnitOfWork>();
-            container.RegisterType<IUsersService, UsersService>();
             container.RegisterType<IMessagesRest, MessagesRest>();
             container.RegisterType<IAccountRest, AccountRest>();
             container.RegisterType<IUsersRest, UsersRest>();
-
+            container.RegisterType<IRolesRepository, RolesRepository>();
 
             DependencyResolver.SetResolver(new UnityDependencyResolver(container));
         }

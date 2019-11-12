@@ -1,8 +1,9 @@
 ﻿using MessengerClientDB.Models;
+using MessengerClientDB.Models.ViewModels;
 using MessengerClientDB.Restful;
-using MessengerClientDB.Services;
-using MessengerClientDB.Unity;
+using MessengerClientDB.Unit;
 using Microsoft.AspNet.Identity;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -11,203 +12,299 @@ using System.Web.Mvc;
 
 namespace MessengerClientDB.Controllers
 {
-    [Authorize(Roles = "Admin,User")]
     public class MessagesController : Controller
     {
         private IUnitOfWork _unitOfWork;
 
-        private IMessageService _messagesService;
-
         private IMessagesRest _messageRest;
 
 
-        public MessagesController(IMessageService messagesService, IMessagesRest messageRest)
+        public MessagesController(IMessagesRest messageRest)
+
         {
-            _unitOfWork = new UnitOfWork(new MessengerClient_DBEntities());
-            _messagesService = messagesService;
+            _unitOfWork = new UnitOfWork();
             _messageRest = messageRest;
         }
 
-
-        public ActionResult Index(string SearchReceiverID)
+        // Displays the received messages. 
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> Inbox(string SearchReceiverID)
         {
-            string myId = User.Identity.GetUserName();
-            if (myId == null)
-            {
-                return HttpNotFound();
-            }
-            var messages = _unitOfWork.messagesRepo.GetAllMessagesOrdered(myId);
+            string myName = User.Identity.GetUserName();
+            var messages = await _unitOfWork.messagesRepo.GetInboxAsync(myName);
             if (!string.IsNullOrEmpty(SearchReceiverID))
             {
-                messages = _messagesService.FilteredMessages(messages, SearchReceiverID);
+                messages = messages.Where(s => s.SenderID.Contains(SearchReceiverID)).OrderByDescending(s => s.Date).ThenByDescending(s => s.Time);
             }
-            if (messages == null)
+            List<MessageVM> messagesVM = new List<MessageVM>();
+            foreach (Messages msg in messages)
             {
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+                MessageVM msgVM = CreateMsgVM(msg);
+                msgVM.ID = msg.ID;
+                messagesVM.Add(msgVM);
             }
-            return View(messages);
+            return View(messagesVM);
         }
 
-        // GET: Messages/Details/5
-        public ActionResult Read(int? id)
+        // Displays all the sent messages. 
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> Sent(string SearchReceiverID)
         {
-            Messages message;
+            string myName = User.Identity.GetUserName();
+            var messages = await _unitOfWork.messagesRepo.GetSentAsync(myName);
+            if (!string.IsNullOrEmpty(SearchReceiverID))
+            {
+                messages = messages.Where(s => s.ReceiverID.Contains(SearchReceiverID)).OrderByDescending(s => s.Date).ThenByDescending(s => s.Time);
+            }
+            List<MessageVM> messagesVM = new List<MessageVM>();
+            foreach (Messages msg in messages)
+            {
+                MessageVM msgVM = CreateMsgVM(msg);
+                msgVM.ID = msg.ID;
+                messagesVM.Add(msgVM);
+            }
+            return View(messagesVM);
+        }
+
+        // Displays a message.
+        // GET: Messages/Details/5
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> Read(int? id)
+        {
             if (id == null)
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
-            message = _unitOfWork.messagesRepo.Get((int)id);
+            Messages message = await _unitOfWork.messagesRepo.GetAsync((int)id);
             if (message == null)
             {
                 return HttpNotFound();
             }
-            message.Read = "Read";
-            _unitOfWork.Save();
-            return View(message);
+            MessageReadVM model = new MessageReadVM
+            {
+                ID = message.ID,
+                SenderID = message.SenderID,
+                ReceiverID = message.ReceiverID,
+                Date = message.Date,
+                Time = message.Time,
+                Contents = message.Contents,
+                Read = message.Read,
+                Queued = message.Queued,
+                IsRead = false
+            };
+            return View(model);
         }
 
-        // GET: Messages/Send
-        public ActionResult Send(int? id)
+        // Saves the changes made to a messages read value. 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> Read([Bind(Include = "ID,IsRead")] MessageReadVM model)
         {
-            Messages reply;
+            if (model == null)
+            {
+                return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
+            }
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+            Messages message = await _unitOfWork.messagesRepo.GetAsync(model.ID);
+            if (message == null)
+            {
+                return HttpNotFound();
+            }
+            if (model.IsRead)
+            {
+                message.Read = "Read";
+            }
+            else
+            {
+                message.Read = "Unread";
+            }
+            await _unitOfWork.SaveAsync();
+            return RedirectToAction("Inbox");
+        }
+
+        // Gets a message that is to be saved on the service's database & that is to be stored on the client's database. 
+
+        // Get: Messages/SendMessage
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> SendMessage(int? id)
+        {
+            SendMessageVM reply = new SendMessageVM();
+            string myName = User.Identity.GetUserName();
             if (id == null)
             {
-                return View();
+                reply.Contents = null;
+                return View(reply);
             }
-            reply = _unitOfWork.messagesRepo.Get((int)id);
+            Messages message = await _unitOfWork.messagesRepo.GetAsync((int)id);
+            if (message == null)
+            {
+                return HttpNotFound();
+            }
+            reply.ReceiverID = message.ReceiverID == myName ? message.SenderID : message.ReceiverID;
+            reply.ID = message.ID;
+            reply.Contents = message.Contents;
             return View(reply);
         }
 
-        // POST: Messages/Create
+        // Sends a message to be saved on the service's database & also stores the message on the client's database. 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<ActionResult> Send([Bind(Include = "ID,ReceiverID,SenderID,Date,Time,Contents,Read")] Messages message)
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> SendMessage([Bind(Include = "ID,ReceiverID,MyContents")] SendMessageVM message)
         {
             if (!ModelState.IsValid)
             {
                 return View(message);
             }
-            try
+            Users user = await _unitOfWork.usersRolesRepo.GetAsync(message.ReceiverID);
+            if (user == null)
             {
-                string myID = User.Identity.GetUserName();
-                message = _messagesService.CreateMessage(myID, message);
-                bool response = await _messageRest.SendAsync(message);
-                if (response)
-                {
-                    _unitOfWork.messagesRepo.Add(message);
-                    _unitOfWork.Save();
-                    return RedirectToAction("Index");
-                }
+                ModelState.AddModelError(string.Empty, "User does not exist.");
+                return View(message);
             }
-            catch { }
-            return View(message);
+            string myName = User.Identity.GetUserName();
+            Messages myMessage = CreateMessage(myName, message.ReceiverID, message.MyContents);
+            bool response = await _messageRest.SendAsync(myMessage);
+            if (response)
+            {
+                _unitOfWork.messagesRepo.Add(myMessage);
+                await _unitOfWork.SaveAsync();
+                return RedirectToAction("Inbox");
+            }
+            return View(myMessage);
         }
 
-        // GET: Messages/Archive/5
-        public ActionResult Archive()
+        // Gets & displays messages that are stored on the service's database. 
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> Dequeue(int? id)
         {
-            return View();
+            List<Messages> messages = await _messageRest.DequeueAsync(User.Identity.GetUserName());
+            List<MessageVM> messagesVM = new List<MessageVM>();
+            foreach (Messages msg in messages)
+            {
+                messagesVM.Add(CreateMsgVM(msg));
+            }
+            TempData["messagesVM"] = messagesVM;
+            return View(messagesVM);
         }
 
+        // Saves messages from the service's database on the client's database. 
         [HttpPost]
-        public async Task<ActionResult> Archive(bool CBReceived = false, bool CBSent = false)
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> Dequeue()
         {
-            bool received = false;
-            bool sent = false;
-            if (CBReceived)
+            if (TempData["messagesVM"] == null)
             {
-                received = true;
+                return RedirectToAction("Inbox");
             }
-            if (CBSent)
+            List<MessageVM> messagesVM = (List<MessageVM>)TempData["messagesVM"];
+            List<Messages> messages = new List<Messages>();
+            foreach (var message in messagesVM)
             {
-                sent = true;
-            }
-            try
-            {
-                List<Messages> myMessages = await _messageRest.ArchiveAsync(User.Identity.GetUserName(), received, sent);
-                if (myMessages != null)
+                messages.Add(new Messages
                 {
-                    _unitOfWork.messagesRepo.AddRange(myMessages);
-                    _unitOfWork.Save();
-                }
+                    SenderID = message.SenderID,
+                    ReceiverID = message.ReceiverID,
+                    Date = message.Date,
+                    Time = message.Time,
+                    Contents = message.Contents,
+                    Read = message.Read,
+                    Queued = message.Queued
+                });
             }
-            catch { }
-            return RedirectToAction("Index");
+            _unitOfWork.messagesRepo.AddRange(messages);
+            await _unitOfWork.SaveAsync();
+            return RedirectToAction("Inbox");
         }
 
+        // Get method to delete messages stored on the service database. 
         // GET: Messages/Delete/5
-        public ActionResult ArchiveDelete()
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> QueueDelete()
         {
-            return View();
+            string myName = User.Identity.GetUserName();
+            List<Messages> msgsQueued = await _messageRest.DequeueAsync(myName);
+            var inbox = await _unitOfWork.messagesRepo.GetInboxAsync(myName);
+            QueueDeleteVM queueVM = new QueueDeleteVM();
+            foreach (Messages msg in msgsQueued)
+            {
+                QueueDeleteMsgVM msgVM = CreateQueueDeleteMsgVM(msg, inbox);
+                queueVM.InInbox.Add(msgVM);
+            }
+            return View(queueVM);
         }
+
+        // Deletes messages stored on the service database. 
         // POST: Messages/GetSent
-        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
-        // more details see https://go.microsoft.com/fwlink/?LinkId=317598.
+        [ValidateAntiForgeryToken]
         [HttpPost]
-        public async Task<ActionResult> ArchiveDelete(bool CBReceived = false, bool CBSent = false)
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> QueueDelete([Bind(Include = "Sender")]QueueDeleteVM model)
         {
-            bool received = false;
-            bool sent = false;
-            if (CBReceived)
+            Users user = await _unitOfWork.usersRolesRepo.GetAsync(model.Sender);
+            if (user == null)
             {
-                received = true;
+                ModelState.AddModelError(string.Empty, "User does not exist.");
+                return View(model);
             }
-            if (CBSent)
-            {
-                sent = true;
-            }
-
+            List<MessageVM> msgsDelete = new List<MessageVM>();
+            string sender = model.Sender;
+            string myName = User.Identity.GetUserName();
             string deleteCount = "0";
-            try
+            if (!String.IsNullOrEmpty(sender) && !String.IsNullOrWhiteSpace(sender))
             {
-                deleteCount = await _messageRest.DeleteAsync(User.Identity.GetUserName(), received, sent);
+                deleteCount = await _messageRest.DeleteAsync(myName, sender);
             }
-            catch { }
             ViewBag.DeleteCount = deleteCount + " message(s) deleted";
-            return View();
+            List<Messages> msgsQueued = await _messageRest.DequeueAsync(myName);
+            QueueDeleteVM queueVM = new QueueDeleteVM();
+            var inbox = await _unitOfWork.messagesRepo.GetInboxAsync(myName);
+            foreach (Messages msg in msgsQueued)
+            {
+                QueueDeleteMsgVM msgVM = CreateQueueDeleteMsgVM(msg, inbox);
+                queueVM.InInbox.Add(msgVM);
+            }
+            return View(queueVM);
         }
 
+        // Get method to delete a message from the client database. 
         // GET: Messages/Delete/5
-        public ActionResult Delete(int? id)
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> Delete(int? id)
         {
             if (id == null)
             {
                 return new HttpStatusCodeResult(HttpStatusCode.BadRequest);
             }
-            Messages message = _unitOfWork.messagesRepo.Get((int)id);
+            Messages message = await _unitOfWork.messagesRepo.GetAsync((int)id);
+            MessageVM messageVM = CreateMsgVM(message);
+            messageVM.ID = message.ID;
             if (message == null)
             {
                 return HttpNotFound();
             }
-            return View(message);
+            return View(messageVM);
         }
 
+        // Deletes a message from the client database.
         // POST: Messages/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public ActionResult DeleteConfirmedAsync(int id)
+        [Authorize(Roles = "Admin,User")]
+        public async Task<ActionResult> DeleteConfirmedAsync(int id)
         {
-            Messages message = _unitOfWork.messagesRepo.Get(id);
+            Messages message = await _unitOfWork.messagesRepo.GetAsync(id);
             if (message == null)
             {
                 return HttpNotFound();
             }
             _unitOfWork.messagesRepo.Remove(message);
-            _unitOfWork.Save();
-            return RedirectToAction("Index");
-        }
-
-        public HttpStatusCodeResult Validator(Messages m)
-        {
-
-            if (!ModelState.IsValid)
-            {
-                var modelErrors = string.Join(" | ", ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage));
-                return new HttpStatusCodeResult(HttpStatusCode.BadRequest, modelErrors);
-            }
-            return null;
+            await _unitOfWork.SaveAsync();
+            return RedirectToAction("Inbox");
         }
 
         // Disposes of resources.
@@ -218,6 +315,57 @@ namespace MessengerClientDB.Controllers
                 _unitOfWork.Dispose();
             }
             base.Dispose(disposing);
+        }
+
+        // Creates a view model for message. 
+        private MessageVM CreateMsgVM(Messages message)
+        {
+            return (new MessageVM
+            {
+                SenderID = message.SenderID,
+                ReceiverID = message.ReceiverID,
+                Date = message.Date,
+                Time = message.Time,
+                Contents = message.Contents,
+                Read = message.Read,
+                Queued = message.Queued
+            });
+        }
+
+        // Creates a view model for QueueDelete.
+        private QueueDeleteMsgVM CreateQueueDeleteMsgVM(Messages message, IEnumerable<Messages> inbox)
+        {
+            MessageComparer msgComparer = new MessageComparer();
+            return (new QueueDeleteMsgVM
+            {
+                SenderID = message.SenderID,
+                ReceiverID = message.ReceiverID,
+                Date = message.Date,
+                Time = message.Time,
+                Contents = message.Contents,
+                Read = message.Read,
+                Queued = message.Queued,
+                Inbox = inbox.Contains(message, msgComparer)
+            });
+        }
+
+        // Creates a message.
+        public Messages CreateMessage(string myId, string receiverID, string contents)
+        {
+            Messages message = new Messages();
+            DateTime myDateTime = DateTime.Now;
+            string sqlFormattedTime = myDateTime.ToString("hh:mm:ss tt");
+            string sqlFormattedDate = myDateTime.ToString("yyyy-MM-dd");
+            TimeSpan timespan = DateTime.Parse(sqlFormattedTime).TimeOfDay;
+            DateTime myDate = DateTime.Parse(sqlFormattedDate);
+            message.Date = myDate;
+            message.Time = timespan;
+            message.SenderID = myId;
+            message.ReceiverID = receiverID;
+            message.Contents = contents;
+            message.Read = "Unread";
+            message.Queued = false;
+            return message;
         }
     }
 }

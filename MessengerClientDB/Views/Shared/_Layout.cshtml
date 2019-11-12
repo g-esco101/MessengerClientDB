@@ -17,13 +17,19 @@
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                 </button>
-                @Html.ActionLink("Messenger Application", "Index", "Messages", new { area = "" }, new { @class = "navbar-brand" })
+                @Html.ActionLink("Messenger Application", "Inbox", "Messages", new { area = "" }, new { @class = "navbar-brand" })
             </div>
             <div class="navbar-collapse collapse">
                 <ul class="nav navbar-nav">
                     <li>@Html.ActionLink("Home", "Index", "Home")</li>
                     <li>@Html.ActionLink("About", "About", "Home")</li>
                     <li>@Html.ActionLink("Contact", "Contact", "Home")</li>
+
+                    @if (User.IsInRole("Admin") || User.IsInRole("User"))
+                    {
+                        <li>@Html.ActionLink("Inbox", "Inbox", "Messages")</li>
+                        <li>@Html.ActionLink("Sent", "Sent", "Messages")</li>
+                    }
 
                     @if (User.IsInRole("Admin"))
                     {

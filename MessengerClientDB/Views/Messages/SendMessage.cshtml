@@ -1,0 +1,53 @@
+﻿@model MessengerClientDB.Models.ViewModels.SendMessageVM
+
+@{
+    ViewBag.Title = "SendMessage";
+}
+
+<h2>Send Message</h2>
+
+<h5>One version of the message is stored in the client database & the other version is stored in the service database. The one stored in the client database belongs to the sender. The one stored in the service database belongs to the receiver.</h5>
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+
+<div class="form-horizontal">
+    @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+    <div class="form-group">
+        @Html.LabelFor(model => model.ReceiverID, htmlAttributes: new { @class = "control-label col-md-2" })
+        <div class="col-md-10">
+            @Html.EditorFor(model => model.ReceiverID, new { htmlAttributes = new { @class = "form-control" } })
+            @Html.ValidationMessageFor(model => model.ReceiverID, "", new { @class = "text-danger" })
+        </div>
+    </div>
+
+    @if (@Model.Contents != null)
+    {
+        <div class="form-group">
+            <div class="col-md-offset-2 col-md-10">
+                @Html.DisplayFor(model => model.Contents)
+            </div>
+        </div>
+    }
+
+    <div class="form-group">
+        @Html.Label("MyContents", htmlAttributes: new { @class = "control-label col-md-2" })
+        <div class="col-md-10">
+            @Html.EditorFor(model => model.MyContents, new { htmlAttributes = new { @class = "form-control" } })
+            @Html.ValidationMessageFor(model => model.MyContents, "", new { @class = "text-danger" })
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="col-md-offset-2 col-md-10">
+            <input type="submit" value="Send" class="btn btn-default" />
+        </div>
+    </div>
+</div>
+
+}
+<p>
+    @Html.ActionLink("Inbox", "Inbox", "Messages") |
+    @Html.ActionLink("Sent", "Sent", "Messages")
+</p>
+

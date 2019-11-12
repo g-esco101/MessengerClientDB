@@ -8,9 +8,9 @@ namespace MessengerClientDB.Restful
     {
         Task<bool> SendAsync(Messages message);
 
-        Task<List<Messages>> ArchiveAsync(string username, bool received, bool sent);
+        Task<List<Messages>> DequeueAsync(string username);
 
-        Task<string> DeleteAsync(string username, bool received, bool sent);
+        Task<string> DeleteAsync(string username, string sendername);
 
     }
 }

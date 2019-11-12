@@ -5,10 +5,7 @@ using System.Web.Security;
 
 namespace MessengerClientDB.Roles
 {
-    // Attempted constructor DI, but it did not always work, because it gets called
-    // when it doesn't have a context. Use using for now. Btw, RoleProvider's life time
-    // is the life of the app.
-    public class UsersRoleProvider : RoleProvider
+    public class CustomRoleProvider : RoleProvider
     {
         public override string ApplicationName
         {
@@ -28,9 +25,9 @@ namespace MessengerClientDB.Roles
             {
                 var userRoles = (from user in _context.Users
                                  join roleMapping in _context.UserRolesMapping
-                                 on user.ID equals roleMapping.UserID
+                                     on user.ID equals roleMapping.UserID
                                  join role in _context.RoleMaster
-                                 on roleMapping.RoleID equals role.ID
+                                     on roleMapping.RoleID equals role.ID
                                  where user.Username.ToLower() == username.ToLower()
                                  orderby role.RoleName
                                  select role.RoleName).ToArray();

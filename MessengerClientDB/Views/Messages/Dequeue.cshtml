@@ -1,0 +1,70 @@
+﻿@model IEnumerable<MessengerClientDB.Models.ViewModels.MessageVM>
+
+@{
+    ViewBag.Title = "Dequeue";
+}
+
+<h2>Dequeue</h2>
+
+<h5>Displays messages that are stored in the service database. Press save to save them to the client database. Note duplicate messages are not saved.</h5>
+@using (Html.BeginForm())
+{
+    @Html.AntiForgeryToken()
+
+    <div class="form-actions no-color">
+        <input type="submit" value="Save" class="btn btn-default" />
+    </div>
+<h5> </h5>
+}
+<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.SenderID)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ReceiverID)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Date)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Time)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Contents)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Read)
+        </th>
+        <th></th>
+    </tr>
+
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.SenderID)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ReceiverID)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Date)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Time)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Contents)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Read)
+            </td>
+        </tr>
+    }
+
+</table>
+<div>
+    @Html.ActionLink("Inbox", "Inbox", "Messages") |
+    @Html.ActionLink("Sent", "Sent", "Messages")
+</div>

@@ -80,4 +80,12 @@ C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bi
 C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\System.Runtime.CompilerServices.Unsafe.xml
 C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\Unity.Abstractions.pdb
 C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\Unity.Container.pdb
+C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\Coderr.Client.dll
+C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\Coderr.Client.xml
 C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\obj\Debug\MessengerClientDB.csprojAssemblyReference.cache
+C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\Castle.Core.dll
+C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\Moq.dll
+C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\System.Threading.Tasks.Extensions.dll
+C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\Castle.Core.xml
+C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\Moq.xml
+C:\Users\LeonardoDaVinci\Git Repositories\MessengerClientDB\MessengerClientDB\bin\System.Threading.Tasks.Extensions.xml

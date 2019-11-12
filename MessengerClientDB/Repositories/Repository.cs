@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace MessengerClientDB.Repositories
 {
@@ -16,17 +17,12 @@ namespace MessengerClientDB.Repositories
         {
             Set = context.Set<TEntity>();
 
-            Context = context;  // Used by children.
+            Context = context;
         }
 
         public TEntity Get(int id)
         {
             return Set.Find(id);
-        }
-
-        public IEnumerable<TEntity> GetAll()
-        {
-            return Set.ToList();
         }
 
         public IEnumerable<TEntity> Find(Expression<Func<TEntity, bool>> predicate)
@@ -37,6 +33,21 @@ namespace MessengerClientDB.Repositories
         public TEntity SingleOrDefault(Expression<Func<TEntity, bool>> predicate)
         {
             return Set.SingleOrDefault(predicate);
+        }
+
+        public async Task<TEntity> GetAsync(int id)
+        {
+            return await Set.FindAsync(id);
+        }
+
+        public async Task<IEnumerable<TEntity>> FindAsync(Expression<Func<TEntity, bool>> predicate)
+        {
+            return await Set.Where(predicate).ToListAsync();
+        }
+
+        public async Task<TEntity> SingleOrDefaultAsync(Expression<Func<TEntity, bool>> predicate)
+        {
+            return await Set.SingleOrDefaultAsync(predicate);
         }
 
         public void Add(TEntity entity)

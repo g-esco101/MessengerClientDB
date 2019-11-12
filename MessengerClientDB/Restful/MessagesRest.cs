@@ -3,59 +3,53 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Formatting;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace MessengerClientDB.Restful
 {
     public class MessagesRest : IMessagesRest
     {
+        // Sends a message to the message service to be stored in its database. 
         public async Task<bool> SendAsync(Messages message)
         {
-            try
+            var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/message/send")
             {
-                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/message/send")
-                {
-                    Content = new ObjectContent(typeof(Messages), message, new JsonMediaTypeFormatter())
-                };
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                if (response.IsSuccessStatusCode)
-                {
-                    return true;
-                }
+                Content = new ObjectContent(typeof(Messages), message, new JsonMediaTypeFormatter())
+            };
+            var response = await MvcApplication._httpClient.SendAsync(requestMessage);
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
             }
-            catch { }
             return false;
         }
 
-        public async Task<List<Messages>> ArchiveAsync(string username, bool received, bool sent)
+        // Retrieves messages from the message service. 
+        public async Task<List<Messages>> DequeueAsync(string username)
         {
-            try
+            string myName = HttpUtility.UrlEncode(username);
+            var requestMessage = new HttpRequestMessage(HttpMethod.Get, $"/api/message/receive?username={myName}");
+            var response = await MvcApplication._httpClient.SendAsync(requestMessage);
+            List<Messages> messages = new List<Messages>();
+            if (response.IsSuccessStatusCode)
             {
-                var requestMessage = new HttpRequestMessage(HttpMethod.Get, "/api/message/receive?myId=" + username + "&received=" + received + "&sent=" + sent);
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadAsAsync<List<Messages>>();
-                }
+                messages = await response.Content.ReadAsAsync<List<Messages>>();
             }
-            catch { }
-            return null;
+            return messages;
         }
 
-        public async Task<string> DeleteAsync(string username, bool received, bool sent)
+        // Deletes the messages from the service database - messages are sent to the user by the specified sender. 
+        public async Task<string> DeleteAsync(string username, string sendername)
         {
             string deleteCount = "0";
-            try
+            string myName = HttpUtility.UrlEncode(username);
+            string sender = HttpUtility.UrlEncode(sendername);
+            var requestMessage = new HttpRequestMessage(HttpMethod.Delete,
+                $"/api/message/delete?username={myName}&sendername={sender}");
+            var response = await MvcApplication._httpClient.SendAsync(requestMessage);
+            if (response.IsSuccessStatusCode)
             {
-                var requestMessage = new HttpRequestMessage(HttpMethod.Delete, "/api/message/delete?myId=" + username + "&received=" + received + "&sent=" + sent);
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                if (response.IsSuccessStatusCode)
-                {
-                    deleteCount = response.Content.ReadAsStringAsync().Result;
-                }
-            }
-            catch (HttpRequestException ex)
-            {
-                System.Diagnostics.Debug.WriteLine("Exception :{0} ", ex.Message);
+                deleteCount = response.Content.ReadAsStringAsync().Result;
             }
             return deleteCount;
         }

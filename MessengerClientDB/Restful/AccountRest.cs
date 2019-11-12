@@ -1,26 +1,29 @@
 ﻿using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Net.Http.Formatting;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using System.Web;
 
 namespace MessengerClientDB.Restful
 {
     public class AccountRest : IAccountRest
     {
-        public async Task<bool> RegisterServiceAsync(string username, string password, string role)
+        public async Task<bool> RegisterServiceAsync(string username, string password, string roles)
         {
-            try
+            var userInfo = new Dictionary<string, string>();
+            userInfo.Add("username", username);
+            userInfo.Add("password", password);
+            userInfo.Add("roles", roles);
+            var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/users/register")
             {
-                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/users/register?username=" + HttpUtility.UrlEncode(username) + "&password=" + HttpUtility.UrlEncode(password) + "&roles=" + role);
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                if (response.IsSuccessStatusCode)
-                {
-                    return true;
-                }
+                Content = new ObjectContent(typeof(Dictionary<string, string>), userInfo, new JsonMediaTypeFormatter())
+            };
+            var response = await MvcApplication._httpClient.SendAsync(requestMessage);
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
             }
-            catch { }
             return false;
         }
 

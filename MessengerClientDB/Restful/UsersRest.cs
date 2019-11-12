@@ -1,39 +1,55 @@
-﻿using System.Net.Http;
+﻿using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Formatting;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace MessengerClientDB.Restful
 {
     public class UsersRest : IUsersRest
     {
         // Rest call to service to add user roles.
-        public async Task<bool> AddRolesServiceAsync(string username, string rolesCSV)
+        public async Task<bool> AddRolesServiceAsync(string username, List<string> roles)
         {
-            try
+            string name = HttpUtility.UrlEncode(username);
+            var requestMessage = new HttpRequestMessage(HttpMethod.Post, $"/api/users/addroles?username={name}")
             {
-                var requestMessage = new HttpRequestMessage(HttpMethod.Put, "/api/users/addroles?username=" + username + "&roles=" + rolesCSV);
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                if (response.IsSuccessStatusCode)
-                {
-                    return true;
-                }
+                Content = new ObjectContent(typeof(List<string>), roles, new JsonMediaTypeFormatter())
+            };
+            var response = await MvcApplication._httpClient.SendAsync(requestMessage);
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
             }
-            catch { }
             return false;
         }
 
         // Rest call to service to remove user roles.
-        public async Task<bool> RemoveRolesServiceAsync(string username, string rolesCSV)
+        public async Task<bool> RemoveRolesServiceAsync(string username, List<string> roles)
         {
-            try
+            string name = HttpUtility.UrlEncode(username);
+            var requestMessage = new HttpRequestMessage(HttpMethod.Delete, $"/api/users/removeroles?username={name}")
             {
-                var requestMessage = new HttpRequestMessage(HttpMethod.Put, "/api/users/removeroles?username=" + username + "&roles=" + rolesCSV);
-                var response = await MvcApplication._httpClient.SendAsync(requestMessage);
-                if (response.IsSuccessStatusCode)
-                {
-                    return true;
-                }
+                Content = new ObjectContent(typeof(List<string>), roles, new JsonMediaTypeFormatter())
+            };
+            var response = await MvcApplication._httpClient.SendAsync(requestMessage);
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
             }
-            catch { }
+            return false;
+        }
+
+        // Rest call to the service to delete user from its database. 
+        public async Task<bool> DeleteFromService(string username)
+        {
+            string name = HttpUtility.UrlEncode(username);
+            var requestMessage = new HttpRequestMessage(HttpMethod.Delete, $"/api/users/delete?username={name}");
+            var response = await MvcApplication._httpClient.SendAsync(requestMessage);
+            if (response.IsSuccessStatusCode)
+            {
+                return true;
+            }
             return false;
         }
     }

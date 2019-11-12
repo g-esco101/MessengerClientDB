@@ -1,0 +1,80 @@
+﻿@model IEnumerable<MessengerClientDB.Models.ViewModels.MessageVM>
+
+@{
+    ViewBag.Title = "Sent";
+}
+
+<h2>Sent</h2>
+
+<p>
+    @Html.ActionLink("Send Message", "SendMessage", "Messages") |
+    @Html.ActionLink("Delete Queue", "QueueDelete", "Messages") |
+    @Html.ActionLink("Dequeue Messages", "Dequeue", "Messages")
+
+</p>
+
+@using (Html.BeginForm("Sent", "Messages", FormMethod.Get))
+{
+    <p>
+        Receiver: @Html.TextBox("SearchReceiverID")
+        <input type="submit" value="Filter" />
+    </p>
+}
+
+
+<table class="table">
+    <tr>
+        <th>
+            @Html.DisplayNameFor(model => model.SenderID)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.ReceiverID)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Date)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Time)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Contents)
+        </th>
+        <th>
+            @Html.DisplayNameFor(model => model.Read)
+        </th>
+        <th></th>
+    </tr>
+
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.SenderID)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ReceiverID)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Date)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Time)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Contents)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Read)
+            </td>
+            <td>
+                @Html.ActionLink("Send Message", "SendMessage", new { id = item.ID }) |
+                @Html.ActionLink("Read", "Read", new { id = item.ID }) |
+                @Html.ActionLink("Delete", "Delete", new { id = item.ID })
+            </td>
+        </tr>
+    }
+
+</table>
+<p>
+    @Html.ActionLink("Inbox", "Inbox", "Messages")
+</p>
